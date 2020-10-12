@@ -5,7 +5,7 @@ Xiomara Chirinos
 
 # Fundamentals of Big Data Final Project
 
-Our final project was built in R Studio.\
+Our final project was built in R Studio.
 
 There are three main folders: **Code**, **Data**, and **Documents**
 
