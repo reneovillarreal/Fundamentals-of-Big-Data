@@ -1,0 +1,641 @@
+---
+title: "Final Project - Climate Change"
+output: html_notebook
+authors: Rene Villarreal, Raul Ramon, Xiomara Chirinos
+---
+
+# Abstract
+
+Climate change has been impacting the world and is a hot topic that arises every now and again. Whether it's cyclical, caused by human emissions, or a combination of both, we know our world is getting hotter. It rains more in places where it normally does not rain and places that get a lot of rain are going through droughts. In our project we wanted to understand how climate has changed in Miami Dade county over the past 40 years. We compared data against other various counties around the nation to determine significant differences in temperatures, precipitation, and sunshine. We chose counties in arguably the coldest state in the contiguous United States, as well as some on the other side of the country. Our analysis concludes that Miami Dade County is one of the hottest counties in the country and has continued to get hotter. Our forecasts have determined that we are expecting the county to get half a degree hotter by July 2023. <br><br>
+
+Please note that these findings are for educational purposes only and for use at St. Thomas Univeristy. They are not peer-reviewed, certified, or approved by the necessary agencies as statistical evidence and should not serve as such.
+
+# URL for Full Data
+
+https://www.dropbox.com/s/7hfxwml3mnzvfck/FullData.zipx?dl=0
+<br><br>
+
+# Install Packages
+```{r}
+install.packages("tidyverse")
+install.packages("corrplot")
+install.packages("caTools")
+install.packages("caret")
+install.packages("forecast")
+install.packages("lubridate")
+```
+<br><br>
+
+
+# Load Libraries
+```{r}
+library(tidyverse)
+library(corrplot)
+library(caTools)
+library(caret)
+library(forecast)
+library(lubridate)
+```
+<br><br>
+
+
+# Load Data Files and Bind
+```{r}
+file_list <- list.files(pattern = "*.csv") #creates a vector with a list of files that have a csv extension in the wd.
+
+column_classes <- c("factor", "character", "factor", "factor", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double") #creates a vector with column classes
+
+data_all <- lapply(file_list, function(x) read.csv(x, colClasses = column_classes)) %>% bind_rows #applies read.csv to all files in file list and column classes. Then binds the data together.
+
+data_all
+  
+
+```
+<br><br>
+
+
+# Rename Variables and Change Data Type
+```{r}
+# In this chunk we will be renaming our variables to understandable terms. Then we mutate the variables to a data type that is useful for our analysis.
+data_final <- data_all %>%
+            rename(WIND_SPEED = AWND,
+                   TIME_FASTEST_WIND = FMTM,
+                   TIME_PEAK_GUST = PGTM,
+                   RAIN = PRCP,
+                   SNOW_DEPTH = SNWD,
+                   TEMP_AVG = TAVG,
+                   TEMP_MAX = TMAX,
+                   TEMP_MIN = TMIN,
+                   OBS_TEMP = TOBS,
+                   DIR_2MIN_WIND = WDF2,
+                   DIR_5MIN_WIND = WDF5,
+                   FAST_2MIN_WIND = WSF2,
+                   FAST_5MIN_WIND = WSF5,
+                   TOTAL_SUNSHINE = TSUN,
+                   EVAPORATION = EVAP,
+                   SPEED_PEAK_GUST = WSFG
+                   ) %>%
+            mutate(STATION = as.factor(STATION),
+                   DATE = as.Date(DATE, "%m/%d/%Y"),
+                   STATE = as.factor(STATE),
+                   COUNTY = as.factor(COUNTY),
+                   EVAPORATION = as.double(EVAPORATION)
+                   )
+data_final
+```
+<br><br>
+
+# Boxplot
+
+```{r}
+ggplot(data_final, aes(x = RAIN, y= TEMP_AVG, fill = COUNTY)) +
+  geom_boxplot(outlier.color = "red", outlier.shape = 8) +
+  labs(title = "Boxplot: Rain vs Temperature",
+       subtitle = "1980 - 2020",
+       x = "Rain (in)",
+       y = "Temperature (F)",
+       caption = "Source: NOAA")
+```
+In the boxplot above we are doing our first exploratory analysis graph. We can see that it rains the most in Miami Dade and Broward, and they also have the highest average temperatures. We also see there a couple of bad data points that show 0 Temperature, but in such a huge dataset it will be drowned out. Dane, a county in Wisconsin, has the lowest average temperature while California seems to get the least amount of rain.
+<br><br>
+
+
+
+# Temperatures during the Summer Months
+How hot does it get during summer in our selected counties? From 1980 to 2020, we will see below what average temperatures have been. <br><br>
+
+```{r}
+question1_mean_temp <-
+  
+data_final %>%
+  filter(between(month(DATE), 5, 9), !is.na(TEMP_AVG)) %>% #filter for months between may and september, dropping nas
+  select(COUNTY, TEMP_AVG) %>%
+  group_by(COUNTY) %>%
+  summarize(meanT = mean(TEMP_AVG),
+            sd_T = sd(TEMP_AVG)) %>%
+  arrange(desc(meanT))
+
+question1_mean_temp
+```
+Broward county has the highest average temperature with 81.9 degrees F. Miami Dade comes in a close second with 81.2 degrees F. Fresno has a standard deviation of 12 degrees, meaning their data points are very spead out. <br><br>
+
+
+### Temp by County
+```{r}
+ggplot(question1_mean_temp, aes(x = COUNTY, y = meanT, fill = COUNTY)) +
+  geom_col() +
+  labs(title = "Avg Temp by County",
+       subtitle = "May - September, 1980 - 2020",
+       x = "County",
+       y = "Mean Temperature (F)",
+       caption = "Source: NOAA")
+```
+Our second plot is a representation of average temperature by county. Visually, Miami Dade and Broward are almost the exact same height. Next we will look at their data to determine if their average temperatures are significant. <br><br>
+
+# Hypothesis Testing
+
+H<sub>0</sub>: &mu;<sub>Miami Dade</sub> = &mu;<sub>Broward</sub> <br>
+H<sub>1</sub>: &mu;<sub>Miami Dade</sub> &ne; &mu;<sub>Broward</sub> <br>
+&alpha; = 0.05
+<br><br>
+
+# Subset Data
+```{r}
+q6_md_b <- data_final %>%
+           filter(COUNTY == "Miami Dade" | COUNTY == "Broward", !is.na(TEMP_AVG), TEMP_AVG > 0) %>%
+           select(COUNTY, TEMP_AVG)
+q6_md_b
+```
+<br><br>
+
+# Tests for Normality
+```{r}
+ggplot(q6_md_b, aes(x = TEMP_AVG, fill = COUNTY, alpha = 0.7)) +
+  geom_density() +
+  labs(title = "Density: Average Temp per County",
+       subtitle = "Miami Dade & Broward",
+       x = "Average Temperature",
+       y = "Density",
+       caption = "Source: NOAA"
+       )
+```
+Based on the density plot above, and the sample sizes being over 134,000 points, we can assume data to be normal by the central limit theorem. Therefore, our test would be an unpaired t-test as they are both independent samples. <br><br>
+
+# T-Test
+```{r}
+q6_md <- filter(q6_md_b, COUNTY == "Miami Dade")
+q6_b <- filter(q6_md_b, COUNTY == "Broward")
+
+
+t.test(q6_md$TEMP_AVG, q6_b$TEMP_AVG, paired = FALSE)
+```
+p-value of 2.2e-16 is less than our alpha of 0.05, thus reject null hypothesis. There is sufficient evidence to support the claim that the average temperatures between both counties is significant.
+<br><br>
+
+# Rain Over the Past Decade
+How much rain has fallen, on average, per month from 2010 to 2020? <br><br>
+
+# Subset the Data
+```{r}
+question2_mean_rain <-
+  
+data_final %>%
+  filter(between(year(DATE), 2010, 2020), !is.na(RAIN), RAIN > 0) %>% 
+  select(COUNTY, RAIN) %>%
+  group_by(COUNTY) %>%
+  summarize(meanR = mean(RAIN),
+            sd_R = sd(RAIN)) %>%
+  arrange(desc(meanR))
+
+question2_mean_rain
+```
+In a ten year span, it rained an average total of 0.46 inches per month in Miami Dade County and 0.45 inches per month in Broward. Fresno and Sacramento seem to have received the least amount of rain. <br><br>
+
+### Precipitation by County
+```{r}
+ggplot(question2_mean_rain, aes(x = COUNTY, y = meanR, fill = COUNTY)) +
+  geom_col() +
+  labs(title = "Avg Precipitation by County",
+       subtitle = "2010 - 2020",
+       x = "County",
+       y = "Rain (in)",
+       caption = "Source: NOAA")
+```
+Visually we see the differences between counties and the amount of average rain per month from 2010 to 2020.
+
+
+# Rain vs Temperature
+Looking specifically at Miami Dade, how much rain has fallen per month of each year when the temperatures have been between 75 and 85 degrees?
+<br><br>
+
+# Subset the data
+```{r}
+question3_temp <-
+  
+data_final %>%
+  filter(COUNTY == "Miami Dade", between(TEMP_AVG, 75, 85), !is.na(RAIN), RAIN > 0) %>%
+  select(COUNTY, month(data_final$DATE), RAIN) %>%
+  group_by(COUNTY, month(DATE)) %>%
+  summarize(meanR = mean(RAIN))
+
+question3_temp
+```
+From the table above, we can see that the month with the most rain is May. However, it rains almost twice as much during the summer as it does during any other time of the year. <br><br>
+
+```{r}
+ggplot(question3_temp, aes(x = `month(DATE)`, y = meanR, color = as.factor(`month(DATE)`))) +
+  geom_point() +
+  labs(title = "Avg Monthly Precipitation",
+       subtitle = "Miami Dade County: 1980 - 2020",
+       x = "Month Number",
+       y = "Total Rain (in)",
+       caption = "Source: NOAA") +
+  scale_x_continuous(breaks = c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12))
+```
+
+# Correlations between Rain and Temperature
+For which county does rain and temperature correlate the most (either negative or positive)? <br><br>
+
+# Subset the Data
+```{r}
+q4_rt_broward <-
+                      data_final %>%
+                      filter(COUNTY == "Broward", !is.na(RAIN), RAIN > 0, !is.na(TEMP_AVG), TEMP_AVG > 0) %>%
+                      select(RAIN, TEMP_AVG)
+                    
+q4_rt_md <-
+                      data_final %>%
+                      filter(COUNTY == "Miami Dade", !is.na(RAIN), RAIN > 0, !is.na(TEMP_AVG), TEMP_AVG > 0) %>%
+                      select(RAIN, TEMP_AVG)
+q4_rt_k <-
+                      data_final %>%
+                      filter(COUNTY == "Kings", !is.na(RAIN), RAIN > 0, !is.na(TEMP_AVG)) %>%
+                      select(RAIN, TEMP_AVG)
+q4_rt_q <-
+                      data_final %>%
+                      filter(COUNTY == "Queens", !is.na(RAIN), RAIN > 0, !is.na(TEMP_AVG)) %>%
+                      select(RAIN, TEMP_AVG)
+q4_rt_f <-
+                      data_final %>%
+                      filter(COUNTY == "Fresno", !is.na(RAIN), RAIN > 0, !is.na(TEMP_AVG), TEMP_AVG > 0) %>%
+                      select(RAIN, TEMP_AVG)
+q4_rt_s <-
+                      data_final %>%
+                      filter(COUNTY == "Sacramento", !is.na(RAIN), RAIN > 0, !is.na(TEMP_AVG), TEMP_AVG > 0) %>%
+                      select(RAIN, TEMP_AVG)
+q4_rt_d <-
+                      data_final %>%
+                      filter(COUNTY == "Dane", !is.na(RAIN), RAIN > 0, !is.na(TEMP_AVG)) %>%
+                      select(RAIN, TEMP_AVG)
+q4_rt_a <-
+                      data_final %>%
+                      filter(COUNTY == "Adams", !is.na(RAIN), RAIN > 0, !is.na(TEMP_AVG)) %>%
+                      select(RAIN, TEMP_AVG)
+```
+
+## Broward Correlation
+```{r}
+cor(q4_rt_broward)
+```
+
+## Miami Dade Correlation
+```{r}
+cor(q4_rt_md)
+```
+
+## Kings Correlation
+```{r}
+cor(q4_rt_k)
+```
+
+## Queens Correlation
+```{r}
+cor(q4_rt_q)
+```
+
+## Fresno Correlation
+```{r}
+cor(q4_rt_f)
+```
+
+## Sacramento Correlation
+```{r}
+cor(q4_rt_s)
+```
+
+## Dane Correlation
+```{r}
+cor(q4_rt_d)
+```
+
+## Adams Correlation
+```{r}
+cor(q4_rt_a)
+```
+Dane has the highest (though weak) correlation between rain and average temperature. Kings County in New York and Adams County in Wisconsin did not collect temperature data during the time period analyzed. <br> <br>
+
+# Correlation Plot for Dane County
+```{r}
+corrplot.mixed(cor(q4_rt_d), lower = "number", upper = "circle")
+```
+
+# Sunshine and Average Temperature
+Florida is known as "The Sunshine State". Do their amount of sunshine correlate to the average temperature we experience? How about other states? <br><br>
+```{r}
+q5_st_fl <-
+                      data_final %>%
+                      filter(STATE == "Florida", !is.na(TEMP_AVG), !is.na(TOTAL_SUNSHINE)) %>%
+                      select(TEMP_AVG, TOTAL_SUNSHINE)
+
+q5_st_ny <-
+                      data_final %>%
+                      filter(STATE == "New York", !is.na(TEMP_AVG), !is.na(TOTAL_SUNSHINE), TOTAL_SUNSHINE > 0) %>%
+                      select(TEMP_AVG, TOTAL_SUNSHINE)
+
+q5_st_ca <-
+                      data_final %>%
+                      filter(STATE == "California", !is.na(TEMP_AVG), !is.na(TOTAL_SUNSHINE)) %>%
+                      select(TEMP_AVG, TOTAL_SUNSHINE)
+
+q5_st_wi <-
+                      data_final %>%
+                      filter(STATE == "Wisconsin", !is.na(TEMP_AVG), !is.na(TOTAL_SUNSHINE)) %>%
+                      select(TEMP_AVG, TOTAL_SUNSHINE)
+```
+
+# Florida
+```{r}
+cor(q5_st_fl)
+```
+
+# New York
+```{r}
+cor(q5_st_ny)
+```
+
+# California
+```{r}
+cor(q5_st_ca)
+```
+
+# Wisconsin
+```{r}
+cor(q5_st_wi)
+```
+
+
+
+```{r}
+corrplot.mixed(cor(q5_st_fl), lower = "number", upper = "circle")
+```
+Wisconsin and New York do not collect sunshine data. While no state has any correlation between sunshine and temperature, Florida has the higehst with 0.09. <br> <br>
+
+# Loess Regression - Rain vs Temperature
+How much rain is predicted to fall in Miami Dade County when the temperature is 80 degrees?
+<br>
+
+Independent variable: Temperature
+Dependent variable: Rain
+<br><br>
+
+# Subset the Data
+```{r}
+q7_md <- data_final %>%
+         filter(COUNTY == "Miami Dade", !is.na(TEMP_AVG), !is.na(RAIN), RAIN > 0, TEMP_AVG > 0) %>%
+         select(COUNTY, TEMP_AVG, RAIN)
+q7_md
+```
+<br><br>
+
+# Linear Correlation
+```{r}
+cor.test(q7_md$TEMP_AVG, q7_md$RAIN, method = "pearson")$estimate
+```
+There is no linear correlation between the two variables. Therefore, we will use a loess model.
+<br><br>
+
+# Loess Trend Line
+
+```{r}
+ggplot(q7_md, aes(x = TEMP_AVG, y = RAIN)) +
+  geom_point() +
+  geom_smooth(method = "loess") +
+  labs(title = "Average Temperature vs Rain",
+       subtitle = "Miami Dade: 1980 - 2020",
+       x = "Average Temperature (F)",
+       y = "Rain (in)",
+       caption = "Source: NOAA")
+```
+The loess trend line above shows temperature vs rain and the best fit for a loess line.
+<br><br>
+
+# Pairs Matrix
+```{r}
+MD_RT <- select(q7_md, TEMP_AVG, RAIN)
+pairs(MD_RT)
+```
+<br><br>
+# Loess Regression
+```{r}
+MD_RT_model <- loess(RAIN ~ TEMP_AVG, q7_md)
+MD_RT_model
+```
+Our model has a residual standard error of 0.67.The model is not a very good predictor given the variability of the data and the size of the sample, but it is still better than a linear regression.
+<br><br>
+
+# Prediction
+
+```{r}
+T80 <- data.frame(TEMP_AVG = c(80))
+predictionRT <- predict(MD_RT_model, T80)
+cat("Given a temperature of 90 degrees in Miami Dade, the expected rain amount in inches is:", predictionRT)
+```
+<br><br>
+
+# Verification
+```{r}
+select(q7_md, COUNTY, RAIN, TEMP_AVG) %>%
+  filter(TEMP_AVG == 80) %>%
+  group_by(COUNTY) %>%
+  summarize(meanR = mean(RAIN),
+            sdR = sd(RAIN))
+```
+Using the historical data, we see that Miami Dade has an average rainfall of 0.58 inches when temperatures are 80 degrees. Our model predicted rain to be 0.57 inches.
+<br><br>
+
+# Rain Predictions in Wisconsin given Temperature
+Independent variable: Temperature
+Dependent variable: Rain
+<br><br>
+
+#Subset the Data
+```{r}
+q10_data <- data_final %>%
+  filter(STATE == "Wisconsin", !is.na(RAIN), RAIN > 0, DATE >= "1990-01-01", !is.na(TEMP_AVG)) %>%
+  select(DATE, RAIN, TEMP_AVG)
+q10_data
+```
+<br><br>
+
+# Creating the Train and Testing Models
+```{r}
+set.seed(123)
+
+q10_sample <- sample.split(q10_data, SplitRatio = .75)
+q10_train <- subset(q10_data, q10_sample == TRUE)
+q10_test <- subset(q10_data, q10_sample == FALSE)
+```
+<br><br>
+
+# Loess Model with Training Data
+```{r}
+q10_model <- loess(RAIN ~ TEMP_AVG, data = q10_train)
+q10_model
+```
+Our residual standard error is 0.45. While still not a great model, it fits the data better than the previous model for Miami Dade.
+<br><br>
+
+# Predictions
+```{r}
+predictedRain <- predict(q10_model, q10_test)
+predictedRain
+```
+<br><br>
+
+# Predictions vs Actuals
+```{r}
+q10Prediction <- data.frame(Temp = q10_test$TEMP_AVG,
+                            ActualRain = q10_test$RAIN,
+                            PredictedRain = predictedRain)
+q10Prediction
+```
+In the above data frame we see the model predictions vs the actual rain for said temperatures. What is the predicted rain amount in inches if the temperature is 70 degrees?
+<br><br>
+
+```{r}
+q10Prediction %>%
+  filter(Temp == 70)
+```
+The model predicts the rain to be 0.46 inches.
+<br><br>
+
+# Scatter - Predicted vs Actual
+```{r}
+ggplot(q10Prediction, aes(x = Temp)) +
+  geom_point(aes(y = ActualRain), color = "blue") +
+  geom_point(aes(y = PredictedRain), color = "red") +
+  labs(title = "Temperature vs Rain",
+       subtitle = "Actual (blue) vs. Predicted (Red)",
+       y = "Rain (in)",
+       x = "Temperature (F)",
+       caption = "Source: NOAA")
+```
+The highest the temperature, the more the model predicts rain to be.
+<br><br>
+
+# Mean Absolute Error
+```{r}
+q10_mae <- MAE(q10Prediction$ActualRain, q10Prediction$PredictedRain)
+cat("Mean Absolute Error:", q10_mae)
+```
+<br><br>
+
+# Root Mean Squared Error
+```{r}
+q10_rmse <- RMSE(q10Prediction$ActualRain, q10Prediction$PredictedRain)
+cat("Root Mean Squared Error:", q10_rmse)
+```
+<br><br>
+
+# Mean Squared Error
+```{r}
+q10_mse <- q10_rmse*q10_rmse
+cat("Mean Squared Error:", q10_mse)
+```
+<br><br>
+
+R2: Since this is a loess model, there is no R2 value. R2 is for linear models.
+<br><br>
+
+# Time Series - July 2020 vs July 2023
+How much higher or lower is the July 2023 temperature forecast in comparison with July 2020?
+<br><br>
+
+# Subset the Data
+```{r}
+q8_data <- data_final %>%
+  filter(COUNTY == "Miami Dade", !is.na(TEMP_AVG), TEMP_AVG > 0) %>%
+  select(DATE, TEMP_AVG) %>%
+  group_by(DATE) %>%
+  summarize(meanT = mean(TEMP_AVG)) %>%
+ mutate(MONTH = month(DATE, label = TRUE),
+         YEAR = year(DATE)) %>%
+ group_by(MONTH, YEAR) %>%
+ summarize(meanT = mean(meanT)) %>%
+  arrange(YEAR, MONTH)
+q8_data
+```
+
+# Decomposition
+```{r}
+q8TS <- ts(q8_data$meanT, start = c(1992, 3), end = c(2020, 9), frequency = 12)
+q8Decomp <- decompose(q8TS)
+plot(q8Decomp)
+```
+The data is very volatile, as evidence by the randomness graph. It is also very seasonal, as expected. Rain amounts have increased over the past ten years.
+<br><br>
+
+# Arima Model
+```{r}
+arimaModel <- auto.arima(q8TS)
+arimaFcst <- forecast(arimaModel, h = 36)
+arimaFcst
+```
+The forecasted temperature in July 2023 is 84 degrees F, with a 95% confidence interval range of 78.1 to 89.9.
+<br><br>
+
+# Forecast Plot
+```{r}
+plot(arimaFcst, xlim = c(2010, 2023))
+```
+Due to the volaitilty of the data, the error for our forecast are wide even with near term predictions.
+<br><br>
+
+# July 2020 Temperature
+```{r}
+q8_data %>%
+  filter(MONTH == "Jul", YEAR == 2020) %>%
+  select(meanT)
+```
+The temperature in July 2020 in Miami Dade is 83.66 F. Therefore, temperatures for July are expected to me 0.34 degrees higher by 2023.
+<br><br>
+
+# Time Series - Florida Rain Forecast
+How much rain is forecasted for Florida over the next year?
+<br><br>
+
+# Subset the Data
+```{r}
+q9_data <- data_final %>%
+  filter(STATE == "Florida", !is.na(RAIN), RAIN > 0) %>%
+  select(DATE, RAIN) %>%
+  group_by(DATE) %>%
+  summarize(meanR = mean(RAIN)) %>%
+ mutate(MONTH = month(DATE, label = TRUE),
+         YEAR = year(DATE)) %>%
+ group_by(MONTH, YEAR) %>%
+ summarize(meanR = mean(meanR)) %>%
+  arrange(YEAR, MONTH)
+q9_data
+```
+<br><br>
+
+# Decomposition
+```{r}
+q9TS <- ts(q9_data$meanR, start = c(1980, 1), end = c(2020, 9), frequency = 12)
+q9Decomp <- decompose(q9TS)
+plot(q9Decomp)
+```
+This data is also very volatile with more seasonal changes. The trend for this model seems to have been declining since 1990 and recently picking back up.
+<br><br>
+
+# Arima Model
+```{r}
+arimaModel2 <- auto.arima(q9TS)
+arimaFcst2 <- forecast(arimaModel2, h = 12)
+arimaFcst2
+```
+<br><br>
+
+# Forecast
+```{r}
+arima2_values <- c(0.2400961, 0.2247333, 0.2008597, 0.2244680, 0.2295683, 0.2552351, 0.3060520, 0.3220938, 0.3665838, 0.3393226, 0.3596949, 0.2874200)
+cat("Over the next year, the average monthly rainfall is expected to be:", mean(arima2_values), "inches")
+```
+<br><br>
+
+# Forecast Plot
+```{r}
+plot(arimaFcst2, xlim = c(2010, 2021))
+```
+The next year's rainfall forecasts have a big error margin due to the randomness of the data.
