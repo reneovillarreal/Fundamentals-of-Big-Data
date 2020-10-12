@@ -1,6 +1,6 @@
 # Authors
-Rene Villarreal
-Raul Ramon
+Rene Villarreal\
+Raul Ramon\
 Xiomara Chirinos
 
 # Fundamentals of Big Data Final Project
