@@ -42,3 +42,7 @@ There is not a Linear Correlation between Rain and Temperature.\
 Miami Dade and Broward are the hottest counties from the ones we tested.\
 Miami Dade County is expected to become hotter by 0.30 degrees by July 2023\
 Temperature and Rain have high volatility, that’s why the ARIMA models show wide error bounds.
+
+# URL for full dataset
+
+https://www.dropbox.com/s/7hfxwml3mnzvfck/FullData.zipx?dl=0
