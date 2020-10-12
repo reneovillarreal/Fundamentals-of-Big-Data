@@ -35,4 +35,10 @@ Our project also contains some time-series analysis with ARIMA models that show 
 
 ![](Images/Arima.JPG)
 
+# Conclusions
 
+Our analysis concludes that:\
+There is not a Linear Correlation between Rain and Temperature.\
+Miami Dade and Broward are the hottest counties from the ones we tested.\
+Miami Dade County is expected to become hotter by 0.30 degrees by July 2023\
+Temperature and Rain have high volatility, that’s why the ARIMA models show wide error bounds.
