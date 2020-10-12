@@ -43,13 +43,11 @@ library(lubridate)
 ```{r}
 file_list <- list.files(pattern = "*.csv") #creates a vector with a list of files that have a csv extension in the wd.
 
-column_classes <- c("factor", "character", "factor", "factor", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double") #creates a vector with column classes
+column_classes <- c("factor", "character", "factor", "factor", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double", "double") 
 
-data_all <- lapply(file_list, function(x) read.csv(x, colClasses = column_classes)) %>% bind_rows #applies read.csv to all files in file list and column classes. Then binds the data together.
+data_all <- lapply(file_list, function(x) read.csv(x, colClasses = column_classes)) %>% bind_rows 
 
 data_all
-  
-
 ```
 <br><br>
 
@@ -117,7 +115,7 @@ data_final %>%
 
 question1_mean_temp
 ```
-Broward county has the highest average temperature with 81.9 degrees F. Miami Dade comes in a close second with 81.2 degrees F. Fresno has a standard deviation of 12 degrees, meaning their data points are very spead out. <br><br>
+Broward county has the highest average temperature with 81.9 degrees F. Miami Dade comes in a close second with 81.2 degrees F. Fresno has a standard deviation of 12 degrees, meaning their data points are very spread out. <br><br>
 
 
 ### Temp by County
@@ -189,7 +187,7 @@ data_final %>%
 
 question2_mean_rain
 ```
-In a ten year span, it rained an average total of 0.46 inches per month in Miami Dade County and 0.45 inches per month in Broward. Fresno and Sacramento seem to have received the least amount of rain. <br><br>
+In a ten-year span, it rained an average total of 0.46 inches per month in Miami Dade County and 0.45 inches per month in Broward. Fresno and Sacramento seem to have received the least amount of rain. <br><br>
 
 ### Precipitation by County
 ```{r}
@@ -202,7 +200,7 @@ ggplot(question2_mean_rain, aes(x = COUNTY, y = meanR, fill = COUNTY)) +
        caption = "Source: NOAA")
 ```
 Visually we see the differences between counties and the amount of average rain per month from 2010 to 2020.
-
+<br><br>
 
 # Rain vs Temperature
 Looking specifically at Miami Dade, how much rain has fallen per month of each year when the temperatures have been between 75 and 85 degrees?
@@ -222,6 +220,7 @@ question3_temp
 ```
 From the table above, we can see that the month with the most rain is May. However, it rains almost twice as much during the summer as it does during any other time of the year. <br><br>
 
+# Precipitation by Month
 ```{r}
 ggplot(question3_temp, aes(x = `month(DATE)`, y = meanR, color = as.factor(`month(DATE)`))) +
   geom_point() +
@@ -368,7 +367,7 @@ cor(q5_st_wi)
 ```{r}
 corrplot.mixed(cor(q5_st_fl), lower = "number", upper = "circle")
 ```
-Wisconsin and New York do not collect sunshine data. While no state has any correlation between sunshine and temperature, Florida has the higehst with 0.09. <br> <br>
+Wisconsin and New York do not collect sunshine data. While no state has any correlation between sunshine and temperature, Florida has the highest with 0.09. <br> <br>
 
 # Loess Regression - Rain vs Temperature
 How much rain is predicted to fall in Miami Dade County when the temperature is 80 degrees?
@@ -420,7 +419,7 @@ pairs(MD_RT)
 MD_RT_model <- loess(RAIN ~ TEMP_AVG, q7_md)
 MD_RT_model
 ```
-Our model has a residual standard error of 0.67.The model is not a very good predictor given the variability of the data and the size of the sample, but it is still better than a linear regression.
+Our model has a residual standard error of 0.67. The model is not a very good predictor given the variability of the data and the size of the sample, but it is still better than a linear regression.
 <br><br>
 
 # Prediction
@@ -489,7 +488,7 @@ q10Prediction <- data.frame(Temp = q10_test$TEMP_AVG,
                             PredictedRain = predictedRain)
 q10Prediction
 ```
-In the above data frame we see the model predictions vs the actual rain for said temperatures. What is the predicted rain amount in inches if the temperature is 70 degrees?
+In the above data frame, we see the model predictions vs the actual rain for said temperatures. What is the predicted rain amount in inches if the temperature is 70 degrees?
 <br><br>
 
 ```{r}
@@ -510,7 +509,7 @@ ggplot(q10Prediction, aes(x = Temp)) +
        x = "Temperature (F)",
        caption = "Source: NOAA")
 ```
-The highest the temperature, the more the model predicts rain to be.
+The higher the temperature, the more the model predicts rain to be.
 <br><br>
 
 # Mean Absolute Error
@@ -562,7 +561,7 @@ q8TS <- ts(q8_data$meanT, start = c(1992, 3), end = c(2020, 9), frequency = 12)
 q8Decomp <- decompose(q8TS)
 plot(q8Decomp)
 ```
-The data is very volatile, as evidence by the randomness graph. It is also very seasonal, as expected. Rain amounts have increased over the past ten years.
+The data is very volatile, as evidenced by the randomness graph. It is also very seasonal, as expected. Rain amounts have increased over the past ten years.
 <br><br>
 
 # Arima Model
@@ -578,7 +577,7 @@ The forecasted temperature in July 2023 is 84 degrees F, with a 95% confidence i
 ```{r}
 plot(arimaFcst, xlim = c(2010, 2023))
 ```
-Due to the volaitilty of the data, the error for our forecast are wide even with near term predictions.
+Due to the volatility of the data, the error for our forecast are wide even with near term predictions.
 <br><br>
 
 # July 2020 Temperature
